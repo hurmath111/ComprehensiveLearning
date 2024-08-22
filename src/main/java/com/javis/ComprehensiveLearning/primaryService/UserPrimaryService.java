@@ -4,9 +4,11 @@ import com.javis.ComprehensiveLearning.constants.RoleEnum;
 import com.javis.ComprehensiveLearning.model.User;
 import com.javis.ComprehensiveLearning.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Service
 public class UserPrimaryService {
 
     @Autowired
