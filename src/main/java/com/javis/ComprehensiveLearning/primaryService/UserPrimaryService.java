@@ -18,7 +18,7 @@ public class UserPrimaryService {
         userRepository.save(user);
     }
 
-    public User findByUsername(String username) {
+    public User findByUserName(String username) {
         return userRepository.findByUserName(username);
     }
 

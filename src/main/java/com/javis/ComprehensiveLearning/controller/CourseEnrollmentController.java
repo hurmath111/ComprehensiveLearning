@@ -1,7 +1,7 @@
 package com.javis.ComprehensiveLearning.controller;
 
 import com.javis.ComprehensiveLearning.dto.CourseDetailsResponse;
-import com.javis.ComprehensiveLearning.dto.EnrollmentRequest;
+import com.javis.ComprehensiveLearning.dto.CourseRequest;
 import com.javis.ComprehensiveLearning.dto.EnrollmentResponse;
 import com.javis.ComprehensiveLearning.security.TokenProvider;
 import com.javis.ComprehensiveLearning.service.CourseEnrollmentService;
@@ -24,7 +24,7 @@ public class CourseEnrollmentController {
 
     @PostMapping("/enroll")
     public ResponseEntity<?> enrollCourses(
-            @RequestBody List<EnrollmentRequest> enrollmentRequests,
+            @RequestBody List<CourseRequest> enrollmentRequests,
             @RequestHeader("Authorization") String authorizationHeader) {
 
         try{

@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class EnrollmentRequest {
+public class CourseRequest {
     private String courseTitle;
     private String category;
 }

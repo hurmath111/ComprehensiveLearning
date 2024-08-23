@@ -1,8 +1,9 @@
 package com.javis.ComprehensiveLearning.constants;
 
 public enum ErrorMessageEnum {
-    INVALID_CREDENTIALS("Invalid username or password"),
+    INVALID_CREDENTIALS("Invalid credentials"),
     NO_USERID("User not found with userId: "),
+    NO_USERNAME("User not found with username: "),
     NO_CLAIM("Claim not found"),
     NO_AUTH("You are not authorized to update this claim"),
     NO_DOC("Invalid document: No file extension found"),

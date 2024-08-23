@@ -19,13 +19,13 @@ import java.util.Collections;
 public class UserPrincipal implements UserDetails {
 
     private Long userId;
-    private String username;
+    private String userName;
     private String password;
     private Collection<? extends GrantedAuthority> authorities;
 
     public UserPrincipal(User user) {
         this.userId = user.getUserId();
-        this.username = user.getUserName();
+        this.userName = user.getUserName();
         this.password = user.getPassword();
         this.authorities = Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name()));
     }
@@ -42,7 +42,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public String getUsername() {
-        return username;
+        return userName;
     }
 
     @Override

@@ -1,0 +1,60 @@
+package com.javis.ComprehensiveLearning.controller;
+
+import com.javis.ComprehensiveLearning.dto.CourseRequest;
+import com.javis.ComprehensiveLearning.model.Course;
+import com.javis.ComprehensiveLearning.security.TokenProvider;
+import com.javis.ComprehensiveLearning.service.CourseManagementService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/admin")
+public class CourseManagementController {
+
+/*    @Autowired
+    private CourseManagementService courseManagementService;
+
+    @Autowired
+    private TokenProvider tokenProvider;
+
+    @PostMapping("/create-update")
+    public ResponseEntity<?> createOrUpdateCourse(@RequestBody CreateUpdateRequest createUpdateRequest) {
+        try{
+            Course course = courseManagementService.createOrUpdateCourse(createUpdateRequest);
+            return ResponseEntity.ok(course);
+        }catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/delete")
+    public ResponseEntity<?> deleteCourse(@RequestBody CourseRequest courseRequest) {
+        try{
+            courseManagementService.deleteCourse(courseRequest);
+            return ResponseEntity.ok("Course Deleted");
+        }catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/fetch")
+    public ResponseEntity<?> fetchCourseDetails(@RequestBody CourseRequest courseRequest) {
+        Course course = courseManagementService.fetchCourseDetails(courseRequest);
+        return ResponseEntity.ok(course);
+    }
+
+    @PostMapping("/upload")
+    public ResponseEntity<?> uploadCourseFile(@RequestParam("file") MultipartFile file) {
+        try{
+            List<CourseDetails> courseDetailsList = courseManagementService.uploadCourseFile(file);
+            return ResponseEntity.ok(courseDetailsList);
+        }catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }*/
+}

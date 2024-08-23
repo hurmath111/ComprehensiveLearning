@@ -2,7 +2,7 @@ package com.javis.ComprehensiveLearning.service;
 
 import com.javis.ComprehensiveLearning.constants.EnrollmentStatusEnum;
 import com.javis.ComprehensiveLearning.dto.CourseDetailsResponse;
-import com.javis.ComprehensiveLearning.dto.EnrollmentRequest;
+import com.javis.ComprehensiveLearning.dto.CourseRequest;
 import com.javis.ComprehensiveLearning.dto.EnrollmentResponse;
 import com.javis.ComprehensiveLearning.model.Course;
 import com.javis.ComprehensiveLearning.model.Enrollment;
@@ -26,7 +26,7 @@ public class CourseEnrollmentService {
     @Autowired
     private EnrollmentPrimaryService enrollmentPrimaryService;
 
-    public List<EnrollmentResponse> enrollCourses(Long userId, List<EnrollmentRequest> enrollmentRequests) {
+    public List<EnrollmentResponse> enrollCourses(Long userId, List<CourseRequest> enrollmentRequests) {
 
         List<EnrollmentResponse> enrollmentResponses = enrollmentRequests.stream()
                 .map(request -> new EnrollmentResponse(request.getCourseTitle(), request.getCategory(), EnrollmentStatusEnum.NOT_AVAILABLE))
