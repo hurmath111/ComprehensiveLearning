@@ -38,7 +38,7 @@ public class CourseEnrollmentService {
                 .collect(Collectors.toList());
 
         // Fetching all matching courses in one DB call
-        List<Course> matchingCourses = coursePrimaryService.findByTitleAndCategoryIn(titleCategoryPairs);
+        List<Course> matchingCourses = coursePrimaryService.findByTitleAndCategoryIn(titleCategoryPairs);//TODO:change the names of variables
 
         if (matchingCourses.isEmpty()) {
             return enrollmentResponses;

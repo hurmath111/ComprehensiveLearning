@@ -19,4 +19,12 @@ public class CoursePrimaryService {
     public List<Course> findByCourseIds(List<Long> courseIds) {
         return courseRepository.findByCourseIdIn(courseIds);
     }
+
+    public List<Course> saveAll(List<Course> courses) {
+        return courseRepository.saveAll(courses);
+    }
+
+    public void deleteAll(List<Course> courses) {
+        courseRepository.deleteAll(courses);
+    }
 }

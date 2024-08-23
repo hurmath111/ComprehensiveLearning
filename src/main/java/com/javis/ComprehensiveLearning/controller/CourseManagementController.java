@@ -1,6 +1,8 @@
 package com.javis.ComprehensiveLearning.controller;
 
+import com.javis.ComprehensiveLearning.dto.CourseDetailsResponse;
 import com.javis.ComprehensiveLearning.dto.CourseRequest;
+import com.javis.ComprehensiveLearning.dto.CreateUpdateRequest;
 import com.javis.ComprehensiveLearning.model.Course;
 import com.javis.ComprehensiveLearning.security.TokenProvider;
 import com.javis.ComprehensiveLearning.service.CourseManagementService;
@@ -16,17 +18,17 @@ import java.util.List;
 @RequestMapping("/api/admin")
 public class CourseManagementController {
 
-/*    @Autowired
+    @Autowired
     private CourseManagementService courseManagementService;
 
     @Autowired
     private TokenProvider tokenProvider;
 
     @PostMapping("/create-update")
-    public ResponseEntity<?> createOrUpdateCourse(@RequestBody CreateUpdateRequest createUpdateRequest) {
+    public ResponseEntity<?> createOrUpdateCourse(@RequestBody List<CreateUpdateRequest> createUpdateRequests) {
         try{
-            Course course = courseManagementService.createOrUpdateCourse(createUpdateRequest);
-            return ResponseEntity.ok(course);
+            List<Course> courses = courseManagementService.createOrUpdateCourses(createUpdateRequests);
+            return ResponseEntity.ok(courses);
         }catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
@@ -48,13 +50,24 @@ public class CourseManagementController {
         return ResponseEntity.ok(course);
     }
 
-    @PostMapping("/upload")
+/*    @PostMapping("/upload")
     public ResponseEntity<?> uploadCourseFile(@RequestParam("file") MultipartFile file) {
         try{
-            List<CourseDetails> courseDetailsList = courseManagementService.uploadCourseFile(file);
+            List<CourseDetailsResponse> courseDetailsList = courseManagementService.uploadCourseFile(file);
             return ResponseEntity.ok(courseDetailsList);
         }catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }*/
+
+    @PostMapping(value = "/upload-syllabus", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> uploadPdfFile(@RequestPart("courseId") Long courseId,
+                                           @RequestPart("document") MultipartFile file) {
+        try {
+            String response = courseManagementService.uploadPdfFile(file);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
 }

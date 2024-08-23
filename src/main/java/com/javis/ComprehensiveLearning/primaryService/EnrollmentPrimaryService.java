@@ -17,11 +17,15 @@ public class EnrollmentPrimaryService {
         return courseEnrollmentRepository.existsByUserIdAndCourseId(userId, courseId);
     }
 
-    public List<Enrollment> saveAll(List<Enrollment> enrollments) {
-        return courseEnrollmentRepository.saveAll(enrollments);
+    public void saveAll(List<Enrollment> enrollments) {
+        courseEnrollmentRepository.saveAll(enrollments);
     }
 
     public List<Enrollment> findByUserId(Long userId) {
         return courseEnrollmentRepository.findByUserId(userId);
+    }
+
+    public List<Enrollment> findByCourseIds(List<Long> courseIds) {
+        return courseEnrollmentRepository.findByCourseIdIn(courseIds);
     }
 }
