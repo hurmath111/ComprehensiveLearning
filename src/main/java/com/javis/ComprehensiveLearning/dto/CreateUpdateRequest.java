@@ -9,8 +9,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateUpdateRequest {
-    private String title;
+public class CreateUpdateRequest implements CourseTitleAndCategory{
+    private String courseTitle;
     private String category;
     private String description;
     private String duration;

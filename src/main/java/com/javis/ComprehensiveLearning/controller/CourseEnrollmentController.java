@@ -1,8 +1,8 @@
 package com.javis.ComprehensiveLearning.controller;
 
-import com.javis.ComprehensiveLearning.dto.CourseDetailsResponse;
 import com.javis.ComprehensiveLearning.dto.CourseRequest;
 import com.javis.ComprehensiveLearning.dto.EnrollmentResponse;
+import com.javis.ComprehensiveLearning.model.Course;
 import com.javis.ComprehensiveLearning.security.TokenProvider;
 import com.javis.ComprehensiveLearning.service.CourseEnrollmentService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,7 +46,7 @@ public class CourseEnrollmentController {
             String token = authorizationHeader.replace("Bearer ", "");
             Long userId = Long.parseLong(tokenProvider.getUserIdFromToken(token));
 
-            List<CourseDetailsResponse> enrolledCourses = courseEnrollmentService.getAllEnrolledCourses(userId);
+            List<Course> enrolledCourses = courseEnrollmentService.getAllEnrolledCourses(userId);
 
             return ResponseEntity.ok(enrolledCourses);
         }catch (Exception e) {

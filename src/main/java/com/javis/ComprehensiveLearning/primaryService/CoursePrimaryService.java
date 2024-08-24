@@ -12,12 +12,16 @@ public class CoursePrimaryService {
     @Autowired
     private CourseRepository courseRepository;
 
-    public List<Course> findByTitleAndCategoryIn(List<Object[]> titleCategoryPairs) {
-        return courseRepository.findByTitleAndCategoryIn(titleCategoryPairs);
+    public List<Course> findByCourseTitleInAndCategoryIn(List<String> courseTitles, List<String> categories) {
+        return courseRepository.findByCourseTitleInAndCategoryIn(courseTitles, categories);
     }
 
     public List<Course> findByCourseIds(List<Long> courseIds) {
         return courseRepository.findByCourseIdIn(courseIds);
+    }
+
+    public Course findByCourseId(Long courseId) {
+        return courseRepository.findByCourseId(courseId);
     }
 
     public List<Course> saveAll(List<Course> courses) {
@@ -26,5 +30,13 @@ public class CoursePrimaryService {
 
     public void deleteAll(List<Course> courses) {
         courseRepository.deleteAll(courses);
+    }
+
+    public List<Course> findAll() {
+        return courseRepository.findAll();
+    }
+
+    public void save(Course course) {
+        courseRepository.save(course);
     }
 }

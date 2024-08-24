@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class CourseRequest {
+public class CourseRequest implements CourseTitleAndCategory{
     private String courseTitle;
     private String category;
 }

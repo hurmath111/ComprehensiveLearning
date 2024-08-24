@@ -1,7 +1,6 @@
 package com.javis.ComprehensiveLearning.service;
 
 import com.javis.ComprehensiveLearning.constants.EnrollmentStatusEnum;
-import com.javis.ComprehensiveLearning.dto.CourseDetailsResponse;
 import com.javis.ComprehensiveLearning.dto.CourseRequest;
 import com.javis.ComprehensiveLearning.dto.EnrollmentResponse;
 import com.javis.ComprehensiveLearning.model.Course;
@@ -11,10 +10,7 @@ import com.javis.ComprehensiveLearning.primaryService.EnrollmentPrimaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,19 +28,33 @@ public class CourseEnrollmentService {
                 .map(request -> new EnrollmentResponse(request.getCourseTitle(), request.getCategory(), EnrollmentStatusEnum.NOT_AVAILABLE))
                 .toList();
 
-        // Creating title-category pairs for the query
-        List<Object[]> titleCategoryPairs = enrollmentRequests.stream()
-                .map(request -> new Object[]{request.getCourseTitle(), request.getCategory()})
+        List<String> courseTitles = enrollmentRequests.stream()
+                .map(CourseRequest::getCourseTitle)
+                .distinct()
                 .collect(Collectors.toList());
 
-        // Fetching all matching courses in one DB call
-        List<Course> matchingCourses = coursePrimaryService.findByTitleAndCategoryIn(titleCategoryPairs);//TODO:change the names of variables
+        List<String> categories = enrollmentRequests.stream()
+                .map(CourseRequest::getCategory)
+                .distinct()
+                .collect(Collectors.toList());
 
-        if (matchingCourses.isEmpty()) {
+        // Fetching matching courses in a single DB call
+        List<Course> allMatchingCourses = coursePrimaryService.findByCourseTitleInAndCategoryIn(courseTitles, categories);
+
+        Set<String> validPairs = enrollmentRequests.stream()
+                .map(req -> req.getCourseTitle() + ":" + req.getCategory())
+                .collect(Collectors.toSet());
+
+        // Step 4: Filter the courses to only include those with matching title-category pairs
+        List<Course> existingCourses = allMatchingCourses.stream()
+                .filter(course -> validPairs.contains(course.getCourseTitle() + ":" + course.getCategory()))
+                .toList();
+
+        if (existingCourses.isEmpty()) {
             return enrollmentResponses;
         }
 
-        Map<String, Course> courseMap = matchingCourses.stream()
+        Map<String, Course> courseMap = existingCourses.stream()
                 .collect(Collectors.toMap(
                         course -> course.getCourseTitle() + "_" + course.getCategory(),
                         course -> course
@@ -81,7 +91,7 @@ public class CourseEnrollmentService {
         return enrollmentResponses;
     }
 
-    public List<CourseDetailsResponse> getAllEnrolledCourses(Long userId) {
+    public List<Course> getAllEnrolledCourses(Long userId) {
         List<Enrollment> enrollments = enrollmentPrimaryService.findByUserId(userId);
 
         if (enrollments.isEmpty()) {
@@ -94,25 +104,6 @@ public class CourseEnrollmentService {
                 .collect(Collectors.toList());
 
         // Fetching complete course details in one DB call
-        List<Course> courses = coursePrimaryService.findByCourseIds(courseIds);
-
-        Map<Long, Course> courseMap = courses.stream()
-                .collect(Collectors.toMap(Course::getCourseId, course -> course));
-
-        return enrollments.stream()
-                .map(enrollment -> {
-                    Course course = courseMap.get(enrollment.getCourseId());
-                    return new CourseDetailsResponse(
-                            enrollment.getCourseId(),
-                            course.getCourseTitle(),
-                            course.getCategory(),
-                            course.getDescription(),
-                            course.getSyllabus(),
-                            course.getDuration(),
-                            course.getInstructor(),
-                            enrollment.getStatus().name()
-                    );
-                })
-                .collect(Collectors.toList());
+        return coursePrimaryService.findByCourseIds(courseIds);
     }
 }

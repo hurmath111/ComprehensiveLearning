@@ -30,7 +30,7 @@ public class UserPrimaryService {
         return userRepository.findAllByRole(role);
     }
 
-    public boolean existsByuserName(String userName) {
+    public boolean existsByUserName(String userName) {
         return userRepository.existsByUserName(userName);
     }
 }

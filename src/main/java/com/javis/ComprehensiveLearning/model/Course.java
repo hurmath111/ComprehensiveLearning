@@ -20,7 +20,7 @@ public class Course {
     private Long courseId;
 
     @Column(name = "CourseTitle", nullable = false)
-    private String courseTitle;
+    private String courseTitle;//TODO:make title+category as unique,some function
 
     @Column(name = "Category", nullable = false)
     private String category;

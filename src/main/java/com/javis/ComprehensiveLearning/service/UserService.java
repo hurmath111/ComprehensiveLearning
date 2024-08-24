@@ -41,7 +41,7 @@ public class UserService {
             throw new IllegalArgumentException(ErrorMessageEnum.INVALID_EMAIL.getMessage());
         }
 
-        if (userPrimaryService.existsByuserName(userRegistrationRequest.getUserName())) {
+        if (userPrimaryService.existsByUserName(userRegistrationRequest.getUserName())) {
             throw new IllegalArgumentException(ErrorMessageEnum.USERNAME_TAKEN.getMessage());
         }
 
