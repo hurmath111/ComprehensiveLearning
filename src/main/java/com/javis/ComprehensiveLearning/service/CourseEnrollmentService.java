@@ -14,7 +14,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-public class CourseEnrollmentService {
+public class CourseEnrollmentService extends BaseCourseService{
 
     @Autowired
     private CoursePrimaryService coursePrimaryService;
@@ -28,37 +28,13 @@ public class CourseEnrollmentService {
                 .map(request -> new EnrollmentResponse(request.getCourseTitle(), request.getCategory(), EnrollmentStatusEnum.NOT_AVAILABLE))
                 .toList();
 
-        List<String> courseTitles = enrollmentRequests.stream()
-                .map(CourseRequest::getCourseTitle)
-                .distinct()
-                .collect(Collectors.toList());
-
-        List<String> categories = enrollmentRequests.stream()
-                .map(CourseRequest::getCategory)
-                .distinct()
-                .collect(Collectors.toList());
-
-        // Fetching matching courses in a single DB call
-        List<Course> allMatchingCourses = coursePrimaryService.findByCourseTitleInAndCategoryIn(courseTitles, categories);
-
-        Set<String> validPairs = enrollmentRequests.stream()
-                .map(req -> req.getCourseTitle() + ":" + req.getCategory())
-                .collect(Collectors.toSet());
-
-        // Step 4: Filter the courses to only include those with matching title-category pairs
-        List<Course> existingCourses = allMatchingCourses.stream()
-                .filter(course -> validPairs.contains(course.getCourseTitle() + ":" + course.getCategory()))
-                .toList();
+        List<Course> existingCourses = fetchAndFilterCourses(enrollmentRequests);
 
         if (existingCourses.isEmpty()) {
             return enrollmentResponses;
         }
 
-        Map<String, Course> courseMap = existingCourses.stream()
-                .collect(Collectors.toMap(
-                        course -> course.getCourseTitle() + "_" + course.getCategory(),
-                        course -> course
-                ));
+        Map<String, Course> courseMap = createCourseMap(existingCourses);
 
         Map<Long, Enrollment> existingEnrollments = enrollmentPrimaryService.findByUserId(userId).stream()
                 .collect(Collectors.toMap(Enrollment::getCourseId, enrollment -> enrollment));

@@ -1,9 +1,9 @@
 package com.javis.ComprehensiveLearning.service;
 
+import com.javis.ComprehensiveLearning.constants.CourseActionEnum;
 import com.javis.ComprehensiveLearning.constants.ErrorMessageEnum;
 import com.javis.ComprehensiveLearning.constants.RoleEnum;
 import com.javis.ComprehensiveLearning.dto.CourseRequest;
-import com.javis.ComprehensiveLearning.dto.CourseTitleAndCategory;
 import com.javis.ComprehensiveLearning.dto.CreateUpdateRequest;
 import com.javis.ComprehensiveLearning.model.Course;
 import com.javis.ComprehensiveLearning.model.Enrollment;
@@ -19,15 +19,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-public class CourseManagementService {
+public class CourseManagementService extends BaseCourseService {
 
     @Autowired
     private CoursePrimaryService coursePrimaryService;
@@ -47,7 +44,7 @@ public class CourseManagementService {
     public List<Course> createOrUpdateCourses(List<CreateUpdateRequest> createUpdateRequests) {
 
         //Filter the courses to only include those with matching title-category pairs
-        List<Course> existingCourses = filterAndFetchCourses(createUpdateRequests);
+        List<Course> existingCourses = fetchAndFilterCourses(createUpdateRequests);
 
         // Fetch all users in a single DB call
         List<User> allUsers = userPrimaryService.findAllByRole(RoleEnum.USER);
@@ -60,7 +57,7 @@ public class CourseManagementService {
     }
 
     public void deleteCourses(List<CourseRequest> courseRequests) {
-        List<Course> courses = filterAndFetchCourses(courseRequests);
+        List<Course> courses = fetchAndFilterCourses(courseRequests);
 
         if (courses.isEmpty()) {
             throw new IllegalArgumentException(ErrorMessageEnum.NO_COURSE.getMessage());
@@ -75,12 +72,12 @@ public class CourseManagementService {
         }
 
         for (Course course : courses) {
-            notifyAllUsersForDeletedCourse(course, allUsers);
+            notifyUsersForCourseUpdate(course, allUsers, CourseActionEnum.DELETED.name().toLowerCase(Locale.ROOT));
         }
     }
 
     public List<Course> fetchCourseDetails(List<CourseRequest> courseRequests) {
-        List<Course> courses = filterAndFetchCourses(courseRequests);
+        List<Course> courses = fetchAndFilterCourses(courseRequests);
 
         if (courses.isEmpty()) {
             throw new IllegalArgumentException(ErrorMessageEnum.NO_COURSE.getMessage());
@@ -119,24 +116,24 @@ public class CourseManagementService {
 
         Map<String, CreateUpdateRequest> requestMap = courseRequests.stream()
                 .collect(Collectors.toMap(
-                        req -> req.getCourseTitle() + ":" + req.getCategory(),
+                        req -> req.getCourseTitle() + "_" + req.getCategory(),
                         req -> req
                 ));
 
         // Filtering existing courses based on title and category matching the requests
         List<Course> existingCourses = allCourses.stream()
-                .filter(course -> requestMap.containsKey(course.getCourseTitle() + ":" + course.getCategory()))
+                .filter(course -> requestMap.containsKey(course.getCourseTitle() + "_" + course.getCategory()))
                 .toList();
 
         // Filtering courses to delete as those that do not match any title-category in the requests
         List<Course> toDeleteCourses = allCourses.stream()
-                .filter(course -> !requestMap.containsKey(course.getCourseTitle() + ":" + course.getCategory()))
+                .filter(course -> !requestMap.containsKey(course.getCourseTitle() + "_" + course.getCategory()))
                 .toList();
 
         if (!toDeleteCourses.isEmpty()) {
             coursePrimaryService.deleteAll(toDeleteCourses);
             for (Course course : toDeleteCourses) {
-                notifyAllUsersForDeletedCourse(course, allUsers);
+                notifyUsersForCourseUpdate(course, allUsers, CourseActionEnum.DELETED.name().toLowerCase(Locale.ROOT));
             }
         }
 
@@ -172,11 +169,7 @@ public class CourseManagementService {
     private List<Course> createOrUpdateProcess(List<CreateUpdateRequest> createUpdateRequests, List<Course> existingCourses, List<User> allUsers) {
 
         // Mapping existing courses by title-category for quick lookup
-        Map<String, Course> existingCourseMap = existingCourses.stream()
-                .collect(Collectors.toMap(
-                        course -> course.getCourseTitle() + ":" + course.getCategory(),
-                        course -> course
-                ));
+        Map<String, Course> existingCourseMap = createCourseMap(existingCourses);
 
         Map<Long, User> userIdToUserMap = allUsers.stream()
                 .collect(Collectors.toMap(User::getUserId, Function.identity()));
@@ -200,7 +193,7 @@ public class CourseManagementService {
         // Process all courses (create/update)
         List<Course> coursesToSave = createUpdateRequests.stream()
                 .map(req -> {
-                    String key = req.getCourseTitle() + ":" + req.getCategory();
+                    String key = req.getCourseTitle() + "_" + req.getCategory();
                     Course course = existingCourseMap.getOrDefault(key, Course.builder().syllabus(null).build());
 
                     course.setCourseTitle(req.getCourseTitle());
@@ -211,13 +204,15 @@ public class CourseManagementService {
 
                     Long courseId = course.getCourseId();
 
-                    if (courseId != null && enrolledcourseIdToUsersMap.containsKey(courseId)) {
+                    if (courseId != null) {
                         // Notify enrolled users for course updates
-                        List<User> enrolledUsers = enrolledcourseIdToUsersMap.get(courseId);
-                        notifyEnrolledUsersForCourseUpdate(course, enrolledUsers);
+                        if(enrolledcourseIdToUsersMap.containsKey(courseId)){
+                            List<User> enrolledUsers = enrolledcourseIdToUsersMap.get(courseId);
+                            notifyUsersForCourseUpdate(course, enrolledUsers, CourseActionEnum.UPDATED.name().toLowerCase(Locale.ROOT));
+                        }
                     } else {
                         // Notify all users for new courses
-                        notifyAllUsersForNewCourse(course, allUsers);
+                        notifyUsersForCourseUpdate(course, allUsers, CourseActionEnum.ADDED.name().toLowerCase(Locale.ROOT));
                     }
 
                     return course;
@@ -228,56 +223,18 @@ public class CourseManagementService {
         return coursePrimaryService.saveAll(coursesToSave);
     }
 
-    private <T extends CourseTitleAndCategory> List<Course> filterAndFetchCourses(List<T> courseRequests) {
-        List<String> courseTitles = courseRequests.stream()
-                .map(CourseTitleAndCategory::getCourseTitle)
-                .distinct()
-                .collect(Collectors.toList());
-
-        List<String> categories = courseRequests.stream()
-                .map(CourseTitleAndCategory::getCategory)
-                .distinct()
-                .collect(Collectors.toList());
-
-        List<Course> allMatchingCourses = coursePrimaryService.findByCourseTitleInAndCategoryIn(courseTitles, categories);
-
-        Set<String> validPairs = courseRequests.stream()
-                .map(req -> req.getCourseTitle() + ":" + req.getCategory())
-                .collect(Collectors.toSet());
-
-        return allMatchingCourses.stream()
-                .filter(course -> validPairs.contains(course.getCourseTitle() + ":" + course.getCategory()))
-                .collect(Collectors.toList());
-    }
-
     private String uploadDocumentToS3(MultipartFile file) {
         return s3Service.uploadDocument(file);//please check the credentials mentioned in application properties
         //return "aiwguyg.pdf";
     }
 
-    private void notifyUsersForCourse(Course course, List<User> users, String subject, String text) {
+    private void notifyUsersForCourseUpdate(Course course, List<User> users, String action) {
+        String subject = "Course " + action + " Notification";
+        String text = "The course " + course.getCourseTitle() + " of the " + course.getCategory() + " category has been " + action + ".";
         for (User user : users) {
             if (user != null) {
                 emailService.sendEmail(user.getEmail(), subject, text);
             }
         }
-    }
-
-    private void notifyEnrolledUsersForCourseUpdate(Course course, List<User> enrolledUsers) {
-        String subject = "Course Update Notification";
-        String text = "The course " + course.getCourseTitle() + " of the " + course.getCategory() + " category has been updated.";
-        notifyUsersForCourse(course, enrolledUsers, subject, text);
-    }
-
-    private void notifyAllUsersForNewCourse(Course course, List<User> allUsers) {
-        String subject = "New Course Available!";
-        String text = "A new course " + course.getCourseTitle() + " of the " + course.getCategory() + " category has been added.";
-        notifyUsersForCourse(course, allUsers, subject, text);
-    }
-
-    private void notifyAllUsersForDeletedCourse(Course course, List<User> allUsers) {
-        String subject = "Course Deleted!";
-        String text = "The course " + course.getCourseTitle() + " of the " + course.getCategory() + " category has been removed.";
-        notifyUsersForCourse(course, allUsers, subject, text);
     }
 }

@@ -49,7 +49,7 @@ public class CourseManagementController {
         return ResponseEntity.ok(courses);
     }
 
-    @PostMapping("/upload")
+    @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
     public ResponseEntity<?> uploadCourseFile(@RequestParam("file") MultipartFile file) {
         try{
             List<Course> courseDetailsList = courseManagementService.uploadCourseFile(file);
@@ -61,7 +61,7 @@ public class CourseManagementController {
 
     @PostMapping(value = "/upload-syllabus", consumes = {"multipart/form-data"})
     public ResponseEntity<?> uploadPdfFile(@RequestPart("courseId") Long courseId,
-                                           @RequestPart("document") MultipartFile file) {
+                                           @RequestPart("file") MultipartFile file) {
         try {
             String response = courseManagementService.uploadPdfFile(file, courseId);
             return ResponseEntity.ok(response);
