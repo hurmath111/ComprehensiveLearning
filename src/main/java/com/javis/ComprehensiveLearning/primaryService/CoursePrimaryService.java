@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class CoursePrimaryService {
@@ -38,5 +39,9 @@ public class CoursePrimaryService {
 
     public void save(Course course) {
         courseRepository.save(course);
+    }
+
+    public List<Course> findAllByCategoryIn(Set<String> categories) {
+        return courseRepository.findByCategoryIn(categories);
     }
 }

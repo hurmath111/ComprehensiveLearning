@@ -25,6 +25,8 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.util.Locale.filter;
+
 @Service
 public class CourseManagementService extends BaseCourseService {
 
@@ -119,22 +121,23 @@ public class CourseManagementService extends BaseCourseService {
 
         workbook.close();
 
-        List<Course> allCourses = coursePrimaryService.findAll();
+        // Extracting the list of categories from the incoming requests
+        Set<String> incomingCategories = courseRequests.stream()
+                .map(CreateUpdateRequest::getCategory)
+                .collect(Collectors.toSet());
 
-        Map<String, CreateUpdateRequest> requestMap = courseRequests.stream()
-                .collect(Collectors.toMap(
-                        req -> req.getCourseTitle() + "_" + req.getCategory(),
-                        req -> req
-                ));
+        List<Course> coursesInCategories = coursePrimaryService.findAllByCategoryIn(incomingCategories);
 
-        // Filtering existing courses based on title and category matching the requests
-        List<Course> existingCourses = allCourses.stream()
-                .filter(course -> requestMap.containsKey(course.getCourseTitle() + "_" + course.getCategory()))
+        Set<String> requestKeys = courseRequests.stream()
+                .map(req -> req.getCourseTitle() + "_" + req.getCategory())
+                .collect(Collectors.toSet());
+
+        List<Course> existingCourses = coursesInCategories.stream()
+                .filter(course -> requestKeys.contains(course.getCourseTitle() + "_" + course.getCategory()))
                 .toList();
 
-        // Filtering courses to delete as those that do not match any title-category in the requests
-        List<Course> toDeleteCourses = allCourses.stream()
-                .filter(course -> !requestMap.containsKey(course.getCourseTitle() + "_" + course.getCategory()))
+        List<Course> toDeleteCourses = coursesInCategories.stream()
+                .filter(course -> !requestKeys.contains(course.getCourseTitle() + "_" + course.getCategory()))
                 .toList();
 
         if (!toDeleteCourses.isEmpty()) {
@@ -214,27 +217,32 @@ public class CourseManagementService extends BaseCourseService {
                     String key = req.getCourseTitle() + "_" + req.getCategory();
                     Course course = existingCourseMap.getOrDefault(key, Course.builder().syllabus(null).build());
 
-                    course.setCourseTitle(req.getCourseTitle());
-                    course.setCategory(req.getCategory());
-                    course.setDescription(req.getDescription());
-                    course.setDuration(req.getDuration());
-                    course.setInstructor(req.getInstructor());
+                    if (course.getCourseId() == null || hasCourseChanged(course, req)) {
+                        course.setCourseTitle(req.getCourseTitle());
+                        course.setCategory(req.getCategory());
+                        course.setDescription(req.getDescription());
+                        course.setDuration(req.getDuration());
+                        course.setInstructor(req.getInstructor());
 
-                    Long courseId = course.getCourseId();
+                        Long courseId = course.getCourseId();
 
-                    if (courseId != null) {
-                        // Notify enrolled users for course updates
-                        if(enrolledcourseIdToUsersMap.containsKey(courseId)){
-                            List<User> enrolledUsers = enrolledcourseIdToUsersMap.get(courseId);
-                            notifyUsersForCourseUpdate(course, enrolledUsers, CourseActionEnum.UPDATED.name().toLowerCase(Locale.ROOT));
+                        if (courseId != null) {
+                            // Notify enrolled users for course updates
+                            if (enrolledcourseIdToUsersMap.containsKey(courseId)) {
+                                List<User> enrolledUsers = enrolledcourseIdToUsersMap.get(courseId);
+                                notifyUsersForCourseUpdate(course, enrolledUsers, CourseActionEnum.UPDATED.name().toLowerCase(Locale.ROOT));
+                            }
+                        } else {
+                            // Notify all users for new courses
+                            notifyUsersForCourseUpdate(course, allUsers, CourseActionEnum.ADDED.name().toLowerCase(Locale.ROOT));
                         }
-                    } else {
-                        // Notify all users for new courses
-                        notifyUsersForCourseUpdate(course, allUsers, CourseActionEnum.ADDED.name().toLowerCase(Locale.ROOT));
-                    }
 
-                    return course;
+                        return course; // Add course to the saving list
+                    } else {
+                        return null; // Skip course if no changes are needed
+                    }
                 })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
         // Save all courses in a single DB call
@@ -249,6 +257,14 @@ public class CourseManagementService extends BaseCourseService {
     private String getCellValue(Row row, int cellIndex) {
         Cell cell = row.getCell(cellIndex);
         return cell != null ? cell.getStringCellValue() : null;
+    }
+
+    private boolean hasCourseChanged(Course existingCourse, CreateUpdateRequest newCourseRequest) {
+        return !Objects.equals(existingCourse.getCourseTitle(), newCourseRequest.getCourseTitle()) ||
+                !Objects.equals(existingCourse.getCategory(), newCourseRequest.getCategory()) ||
+                !Objects.equals(existingCourse.getDescription(), newCourseRequest.getDescription()) ||
+                !Objects.equals(existingCourse.getDuration(), newCourseRequest.getDuration()) ||
+                !Objects.equals(existingCourse.getInstructor(), newCourseRequest.getInstructor());
     }
 
     private List<Long> createCourseIdList(List<Course> courses) {
