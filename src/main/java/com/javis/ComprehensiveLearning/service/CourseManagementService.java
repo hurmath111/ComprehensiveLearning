@@ -79,9 +79,7 @@ public class CourseManagementService extends BaseCourseService {
             throw new IllegalArgumentException(ErrorMessageEnum.NO_USERS.getMessage());
         }
 
-        for (Course course : courses) {
-            notifyUsersForCourseUpdate(course, allUsers, CourseActionEnum.DELETED.name().toLowerCase(Locale.ROOT));
-        }
+        notifyUsersForCourseUpdate(courses, allUsers, CourseActionEnum.DELETED.name().toLowerCase(Locale.ROOT));
     }
 
     public List<Course> fetchCourseDetails(List<CourseRequest> courseRequests) {
@@ -121,31 +119,30 @@ public class CourseManagementService extends BaseCourseService {
 
         workbook.close();
 
-        // Extracting the list of categories from the incoming requests
-        Set<String> incomingCategories = courseRequests.stream()
-                .map(CreateUpdateRequest::getCategory)
-                .collect(Collectors.toSet());
+        Set<String> incomingCategories = new HashSet<>();
+        Set<String> requestKeys = new HashSet<>();
 
+        courseRequests.forEach(req -> {
+            incomingCategories.add(req.getCategory());
+            requestKeys.add(req.getCourseTitle() + "_" + req.getCategory());
+        });
         List<Course> coursesInCategories = coursePrimaryService.findAllByCategoryIn(incomingCategories);
 
-        Set<String> requestKeys = courseRequests.stream()
-                .map(req -> req.getCourseTitle() + "_" + req.getCategory())
-                .collect(Collectors.toSet());
+        List<Course> existingCourses = new ArrayList<>();
+        List<Course> toDeleteCourses = new ArrayList<>();
 
-        List<Course> existingCourses = coursesInCategories.stream()
-                .filter(course -> requestKeys.contains(course.getCourseTitle() + "_" + course.getCategory()))
-                .toList();
-
-        List<Course> toDeleteCourses = coursesInCategories.stream()
-                .filter(course -> !requestKeys.contains(course.getCourseTitle() + "_" + course.getCategory()))
-                .toList();
+        for (Course course : coursesInCategories) {
+            if (requestKeys.contains(course.getCourseTitle() + "_" + course.getCategory())) {
+                existingCourses.add(course);
+            } else {
+                toDeleteCourses.add(course);
+            }
+        }
 
         if (!toDeleteCourses.isEmpty()) {
             deleteEnrollmentsForCourses(toDeleteCourses);
             coursePrimaryService.deleteAll(toDeleteCourses);
-            for (Course course : toDeleteCourses) {
-                notifyUsersForCourseUpdate(course, allUsers, CourseActionEnum.DELETED.name().toLowerCase(Locale.ROOT));
-            }
+            notifyUsersForCourseUpdate(toDeleteCourses, allUsers, CourseActionEnum.DELETED.name().toLowerCase(Locale.ROOT));
         }
 
         //Calling the createOrUpdateCourses method
@@ -154,7 +151,7 @@ public class CourseManagementService extends BaseCourseService {
 
     public String uploadPdfFile(MultipartFile file, Long courseId) {
 
-        /*String originalFileName = file.getOriginalFilename();
+        String originalFileName = file.getOriginalFilename();
         if (originalFileName == null || originalFileName.lastIndexOf(".") == -1) {
             throw new IllegalArgumentException(ErrorMessageEnum.NO_DOC.getMessage());
         }
@@ -178,13 +175,13 @@ public class CourseManagementService extends BaseCourseService {
 
         List<User> users = userPrimaryService.findByUserIds(userIds);
 
-        notifyUsersForCourseUpdate(course, users, CourseActionEnum.UPDATED.name().toLowerCase(Locale.ROOT));
-
         String documentLink = uploadDocumentToS3(file);
 
         course.setSyllabus(documentLink);
 
-        coursePrimaryService.save(course);*/
+        coursePrimaryService.save(course);
+
+        notifyUsersForCourseUpdate(List.of(course), users, CourseActionEnum.UPDATED.name().toLowerCase(Locale.ROOT));
 
         return "PDF uploaded successfully";
     }
@@ -211,6 +208,7 @@ public class CourseManagementService extends BaseCourseService {
                         )
                 ));
 
+        List<Course> newCourses = new ArrayList<>();
         // Process all courses (create/update)
         List<Course> coursesToSave = createUpdateRequests.stream()
                 .map(req -> {
@@ -230,13 +228,12 @@ public class CourseManagementService extends BaseCourseService {
                             // Notify enrolled users for course updates
                             if (enrolledcourseIdToUsersMap.containsKey(courseId)) {
                                 List<User> enrolledUsers = enrolledcourseIdToUsersMap.get(courseId);
-                                notifyUsersForCourseUpdate(course, enrolledUsers, CourseActionEnum.UPDATED.name().toLowerCase(Locale.ROOT));
+                                notifyUsersForCourseUpdate(List.of(course), enrolledUsers, CourseActionEnum.UPDATED.name().toLowerCase(Locale.ROOT));
                             }
                         } else {
                             // Notify all users for new courses
-                            notifyUsersForCourseUpdate(course, allUsers, CourseActionEnum.ADDED.name().toLowerCase(Locale.ROOT));
+                            newCourses.add(course);
                         }
-
                         return course; // Add course to the saving list
                     } else {
                         return null; // Skip course if no changes are needed
@@ -245,6 +242,9 @@ public class CourseManagementService extends BaseCourseService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
+        if (!newCourses.isEmpty()) {
+            notifyUsersForCourseUpdate(newCourses, allUsers, CourseActionEnum.ADDED.name().toLowerCase(Locale.ROOT));
+        }
         // Save all courses in a single DB call
         return coursePrimaryService.saveAll(coursesToSave);
     }
@@ -281,13 +281,26 @@ public class CourseManagementService extends BaseCourseService {
         }
     }
 
-    private void notifyUsersForCourseUpdate(Course course, List<User> users, String action) {
+    private void notifyUsersForCourseUpdate(List<Course> courses, List<User> users, String action) {
+
         String subject = "Course " + action + " Notification";
-        String text = "The course " + course.getCourseTitle() + " of the " + course.getCategory() + " category has been " + action + ".";
-        for (User user : users) {
-            if (user != null) {
-                emailService.sendEmail(user.getEmail(), subject, text);
-            }
+        StringBuilder textBuilder = new StringBuilder("The following courses have been " + action + ":\n");
+
+        for (Course course : courses) {
+            textBuilder.append("- ")
+                    .append(course.getCourseTitle())
+                    .append(" (")
+                    .append(course.getCategory())
+                    .append(")\n");
         }
+
+        String text = textBuilder.toString();
+        List<String> emailAddresses = users.stream()
+                .filter(Objects::nonNull)
+                .map(User::getEmail)
+                .toList();
+
+        // Convert list to array and send email to all users at once
+        emailService.sendEmail(emailAddresses.toArray(new String[0]), subject, text);
     }
 }

@@ -1,6 +1,8 @@
 package com.javis.ComprehensiveLearning.service;
 
 import com.javis.ComprehensiveLearning.constants.EnrollmentStatusEnum;
+import com.javis.ComprehensiveLearning.constants.ErrorMessageEnum;
+import com.javis.ComprehensiveLearning.dto.CourseDetailsResponse;
 import com.javis.ComprehensiveLearning.dto.CourseRequest;
 import com.javis.ComprehensiveLearning.dto.EnrollmentResponse;
 import com.javis.ComprehensiveLearning.model.Course;
@@ -67,19 +69,33 @@ public class CourseEnrollmentService extends BaseCourseService{
         return enrollmentResponses;
     }
 
-    public List<Course> getAllEnrolledCourses(Long userId) {
+    public List<CourseDetailsResponse> getAllEnrolledCourses(Long userId) {
         List<Enrollment> enrollments = enrollmentPrimaryService.findByUserId(userId);
 
         if (enrollments.isEmpty()) {
-            return Collections.emptyList(); //TODO:correct response
+            throw new IllegalArgumentException(ErrorMessageEnum.NO_ENROLLMENTS.getMessage());
         }
 
         // Extracting course IDs from the enrollments
+        Map<Long, EnrollmentStatusEnum> courseIdToStatusMap = new HashMap<>();
         List<Long> courseIds = enrollments.stream()
+                .peek(enrollment -> courseIdToStatusMap.put(enrollment.getCourseId(), enrollment.getStatus()))
                 .map(Enrollment::getCourseId)
                 .collect(Collectors.toList());
 
-        // Fetching complete course details in one DB call
-        return coursePrimaryService.findByCourseIds(courseIds);
+        List<Course> courses = coursePrimaryService.findByCourseIds(courseIds);
+
+        return courses.stream()
+                .map(course -> new CourseDetailsResponse(
+                        course.getCourseId(),
+                        course.getCourseTitle(),
+                        course.getCategory(),
+                        course.getDescription(),
+                        course.getSyllabus(),
+                        course.getDuration(),
+                        course.getInstructor(),
+                        courseIdToStatusMap.get(course.getCourseId())
+                ))
+                .collect(Collectors.toList());
     }
 }

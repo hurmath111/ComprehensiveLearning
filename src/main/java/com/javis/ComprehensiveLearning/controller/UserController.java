@@ -38,9 +38,4 @@ public class UserController {
         }
     }
 
-/*    @GetMapping("/profile")
-    public ResponseEntity<?> getProfile(@AuthenticationPrincipal UserDetails userDetails){
-        UserProfile userProfile = userService.getUserProfile(userDetails.getUsername());
-        return ResponseEntity.ok(userProfile);
-    }*/
 }
