@@ -26,6 +26,10 @@ public class UserPrimaryService {
         return userRepository.findByUserId(userId);
     }
 
+    public List<User> findByUserIds(List<Long> userIds) {
+        return userRepository.findByUserIdIn(userIds);
+    }
+
     public List<User> findAllByRole(RoleEnum role) {
         return userRepository.findAllByRole(role);
     }

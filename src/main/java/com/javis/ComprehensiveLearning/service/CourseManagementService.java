@@ -11,12 +11,14 @@ import com.javis.ComprehensiveLearning.model.User;
 import com.javis.ComprehensiveLearning.primaryService.CoursePrimaryService;
 import com.javis.ComprehensiveLearning.primaryService.EnrollmentPrimaryService;
 import com.javis.ComprehensiveLearning.primaryService.UserPrimaryService;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
@@ -41,6 +43,7 @@ public class CourseManagementService extends BaseCourseService {
     @Autowired
     private S3Service s3Service;
 
+    @Transactional
     public List<Course> createOrUpdateCourses(List<CreateUpdateRequest> createUpdateRequests) {
 
         //Filter the courses to only include those with matching title-category pairs
@@ -56,12 +59,15 @@ public class CourseManagementService extends BaseCourseService {
         return createOrUpdateProcess(createUpdateRequests, existingCourses, allUsers);
     }
 
+    @Transactional
     public void deleteCourses(List<CourseRequest> courseRequests) {
         List<Course> courses = fetchAndFilterCourses(courseRequests);
 
         if (courses.isEmpty()) {
             throw new IllegalArgumentException(ErrorMessageEnum.NO_COURSE.getMessage());
         }
+
+        deleteEnrollmentsForCourses(courses);
 
         coursePrimaryService.deleteAll(courses);
 
@@ -86,6 +92,7 @@ public class CourseManagementService extends BaseCourseService {
         return courses;
     }
 
+    @Transactional
     public List<Course> uploadCourseFile(MultipartFile file) throws Exception {
 
         List<User> allUsers = userPrimaryService.findAllByRole(RoleEnum.USER);
@@ -101,11 +108,11 @@ public class CourseManagementService extends BaseCourseService {
                 continue; // Skip header row
             }
             CreateUpdateRequest request = new CreateUpdateRequest();
-            request.setCourseTitle(row.getCell(0).getStringCellValue());
-            request.setCategory(row.getCell(1).getStringCellValue());
-            request.setDescription(row.getCell(2).getStringCellValue());
-            request.setDuration(row.getCell(4).getStringCellValue());
-            request.setInstructor(row.getCell(5).getStringCellValue());
+            request.setCourseTitle(getCellValue(row, 0));
+            request.setCategory(getCellValue(row, 1));
+            request.setDescription(getCellValue(row, 2));
+            request.setDuration(getCellValue(row, 3));
+            request.setInstructor(getCellValue(row, 4));
 
             courseRequests.add(request);
         }
@@ -131,6 +138,7 @@ public class CourseManagementService extends BaseCourseService {
                 .toList();
 
         if (!toDeleteCourses.isEmpty()) {
+            deleteEnrollmentsForCourses(toDeleteCourses);
             coursePrimaryService.deleteAll(toDeleteCourses);
             for (Course course : toDeleteCourses) {
                 notifyUsersForCourseUpdate(course, allUsers, CourseActionEnum.DELETED.name().toLowerCase(Locale.ROOT));
@@ -143,12 +151,7 @@ public class CourseManagementService extends BaseCourseService {
 
     public String uploadPdfFile(MultipartFile file, Long courseId) {
 
-        Course course = coursePrimaryService.findByCourseId(courseId);
-        if(course == null) {
-            throw new IllegalArgumentException(ErrorMessageEnum.NO_COURSE.getMessage());
-        }
-
-        String originalFileName = file.getOriginalFilename();
+        /*String originalFileName = file.getOriginalFilename();
         if (originalFileName == null || originalFileName.lastIndexOf(".") == -1) {
             throw new IllegalArgumentException(ErrorMessageEnum.NO_DOC.getMessage());
         }
@@ -157,11 +160,28 @@ public class CourseManagementService extends BaseCourseService {
         if (!"pdf".equals(fileExtension)) {
             throw new IllegalArgumentException(ErrorMessageEnum.INVALID_DOC_TYPE.getMessage());
         }
+
+        Course course = coursePrimaryService.findByCourseId(courseId);
+        if(course == null) {
+            throw new IllegalArgumentException(ErrorMessageEnum.NO_COURSE.getMessage());
+        }
+
+        List<Enrollment> enrollments = enrollmentPrimaryService.findByCourseId(courseId);
+
+        List<Long> userIds = enrollments.stream()
+                .map(Enrollment::getUserId)
+                .distinct()
+                .toList();
+
+        List<User> users = userPrimaryService.findByUserIds(userIds);
+
+        notifyUsersForCourseUpdate(course, users, CourseActionEnum.UPDATED.name().toLowerCase(Locale.ROOT));
+
         String documentLink = uploadDocumentToS3(file);
 
         course.setSyllabus(documentLink);
 
-        coursePrimaryService.save(course);
+        coursePrimaryService.save(course);*/
 
         return "PDF uploaded successfully";
     }
@@ -175,9 +195,7 @@ public class CourseManagementService extends BaseCourseService {
                 .collect(Collectors.toMap(User::getUserId, Function.identity()));
 
         // Fetch all enrollments for the existing courses
-        List<Long> courseIds = existingCourses.stream()
-                .map(Course::getCourseId)
-                .collect(Collectors.toList());
+        List<Long> courseIds = createCourseIdList(existingCourses);
         List<Enrollment> enrolledCourses = enrollmentPrimaryService.findByCourseIds(courseIds);
 
         // Creating a map of course IDs to enrolled users
@@ -226,6 +244,25 @@ public class CourseManagementService extends BaseCourseService {
     private String uploadDocumentToS3(MultipartFile file) {
         return s3Service.uploadDocument(file);//please check the credentials mentioned in application properties
         //return "aiwguyg.pdf";
+    }
+
+    private String getCellValue(Row row, int cellIndex) {
+        Cell cell = row.getCell(cellIndex);
+        return cell != null ? cell.getStringCellValue() : null;
+    }
+
+    private List<Long> createCourseIdList(List<Course> courses) {
+        return courses.stream()
+                .map(Course::getCourseId)
+                .collect(Collectors.toList());
+    }
+
+    private void deleteEnrollmentsForCourses(List<Course> courses) {
+        List<Long> courseIds = createCourseIdList(courses);
+
+        if(!courseIds.isEmpty()) {
+            enrollmentPrimaryService.deleteByCourseIdIn(courseIds);
+        }
     }
 
     private void notifyUsersForCourseUpdate(Course course, List<User> users, String action) {

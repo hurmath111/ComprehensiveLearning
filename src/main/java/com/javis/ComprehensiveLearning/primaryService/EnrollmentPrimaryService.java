@@ -28,4 +28,12 @@ public class EnrollmentPrimaryService {
     public List<Enrollment> findByCourseIds(List<Long> courseIds) {
         return courseEnrollmentRepository.findByCourseIdIn(courseIds);
     }
+
+    public List<Enrollment> findByCourseId(Long courseId) {
+        return courseEnrollmentRepository.findByCourseId(courseId);
+    }
+
+    public void deleteByCourseIdIn(List<Long> courseIds) {
+        courseEnrollmentRepository.deleteByCourseIdIn(courseIds);
+    }
 }
