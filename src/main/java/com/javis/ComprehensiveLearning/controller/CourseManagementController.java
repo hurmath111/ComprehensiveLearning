@@ -60,10 +60,9 @@ public class CourseManagementController {
     }
 
     @PostMapping(value = "/upload-syllabus", consumes = {"multipart/form-data"})
-    public ResponseEntity<?> uploadPdfFile(@RequestPart("courseId") Long courseId,
-                                           @RequestPart("file") MultipartFile file) {
+    public ResponseEntity<?> uploadPdfFile(@RequestPart("file") MultipartFile file) {
         try {
-            String response = courseManagementService.uploadPdfFile(file, courseId);
+            String response = courseManagementService.uploadPdfFile(file, 3L);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
