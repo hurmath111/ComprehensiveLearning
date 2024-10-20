@@ -39,7 +39,7 @@ public abstract class BaseCourseService {
         return courses.stream()
                 .collect(Collectors.toMap(
                         course -> course.getCourseTitle() + "_" + course.getCategory(),
-                        Function.identity()
+                        Function.identity()//test adding a comment
                 ));
     }
 }
